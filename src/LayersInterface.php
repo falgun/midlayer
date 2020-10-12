@@ -3,11 +3,22 @@
 namespace Falgun\Midlayer;
 
 use Closure;
+use Falgun\Http\RequestInterface;
 
 interface LayersInterface
 {
 
-    public function __construct(array $layers, Closure $target);
+    /**
+     * 
+     * @param array<int, class-string<MiddlewareInterface>> $layers
+     * @param Closure(): mixed $target
+     * @param Closure(class-string<MiddlewareInterface>): MiddlewareInterface $resolver
+     */
+    public function __construct(array $layers, Closure $target, Closure $resolver);
 
-    public function next($request);
+    /**
+     * @param RequestInterface $request
+     * @return mixed
+     */
+    public function next(RequestInterface $request);
 }

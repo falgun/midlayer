@@ -4,36 +4,39 @@ declare(strict_types=1);
 namespace Falgun\Midlayer;
 
 use Closure;
+use Falgun\Http\RequestInterface;
 
-class Layers implements LayersInterface
+final class Layers implements LayersInterface
 {
 
-    protected array $layers;
-    protected int $index;
-    protected Closure $target;
-    protected $resolver;
+    /** @var array<int, class-string<MiddlewareInterface>> */
+    private array $layers;
+    private int $index;
 
-    public function __construct(array $layers, Closure $target)
+    /** @var Closure(): mixed */
+    private Closure $target;
+
+    /** @var Closure(class-string<MiddlewareInterface>): MiddlewareInterface */
+    private Closure $resolver;
+
+    /**
+     * @param array<int, class-string<MiddlewareInterface>> $layers
+     * @param Closure(): mixed $target
+     * @param Closure(class-string<MiddlewareInterface>): MiddlewareInterface $resolver
+     */
+    public function __construct(array $layers, Closure $target, Closure $resolver)
     {
         $this->layers = $layers;
         $this->target = $target;
         $this->index = -1;
+        $this->resolver = $resolver;
     }
 
-    public function setResolver($resolver): void
-    {
-        if (is_object($resolver) && \method_exists($resolver, 'get')) {
-            $this->resolver = $resolver;
-            return;
-        } elseif ($resolver instanceof Closure) {
-            $this->resolver = $resolver;
-            return;
-        }
-
-        throw new \InvalidArgumentException('$resolver must be either a container object or Closure');
-    }
-
-    public function next($request)
+    /**
+     * @param RequestInterface $request
+     * @return mixed
+     */
+    public function next(RequestInterface $request)
     {
         $this->moveToNextLayer();
 
@@ -48,23 +51,25 @@ class Layers implements LayersInterface
         return $middleware->handle($request, $this);
     }
 
-    protected function resolveClass(string $className)
+    /**
+     * @param class-string<MiddlewareInterface> $className
+     * @return MiddlewareInterface
+     * @psalm-suppress InvalidStringClass
+     */
+    private function resolveClass(string $className): MiddlewareInterface
     {
-        if (\is_object($this->resolver)) {
-            return $this->resolver->get($className);
-        } elseif ($this->resolver instanceof Closure) {
-            return ($this->resolver)($className);
-        }
-
-        return (new $className());
+        return ($this->resolver)($className);
     }
 
-    protected function getCurrentLayer()
+    /**
+     * @return class-string<MiddlewareInterface>|null
+     */
+    private function getCurrentLayer()
     {
         return $this->layers[$this->index] ?? null;
     }
 
-    protected function moveToNextLayer(): self
+    private function moveToNextLayer(): self
     {
         $this->index++;
         return $this;

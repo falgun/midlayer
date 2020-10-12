@@ -92,4 +92,23 @@ final class MidlayerTest extends TestCase
             ['AnotherFakeMiddleware', 'FakeMiddleware', 'FakeMiddleware', 'FakeMiddleware', 'AnotherFakeMiddleware'],
             $request->attributes()->get('middlewares'));
     }
+
+    public function testLayersMustBeAListTypeArray()
+    {
+        $request = RequestBuilder::build();
+        $layers = [
+            'a' => Stubs\FakeMiddleware::class,
+            'b' => Stubs\FakeMiddleware::class
+        ];
+        // midlayer will strip keys from $layers
+
+        $midlayer = new Midlayer($layers);
+
+        $response = $midlayer->run($request, function() {
+            return false;
+        });
+
+        $this->assertSame(false, $response);
+        $this->assertSame(2, $request->attributes()->get('layers'));
+    }
 }
